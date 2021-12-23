@@ -1,0 +1,117 @@
+// @ts-nocheck
+
+function onFormSubmit() {
+  
+  var token1 = ["xxxx"];//โทเค่นไลน์ผู้มีสิทธิ์อนุมัติ
+  
+  var form = FormApp.openById('1xxx'); 
+  var fRes = form.getResponses();
+  var formResponse = fRes[fRes.length - 1];
+  var itemResponses = formResponse.getItemResponses();
+  
+  var ss = SpreadsheetApp.openById('xxx');
+  var sheet = ss.getSheetByName('การตอบแบบฟอร์ม 1');
+  var row = sheet.getActiveRange().getLastRow()+1;
+
+//ให้ไปสร้างลิสต์อนุมัติในชีตแผ่น 2 เพื่อดึงค่ามาแสดงที่ชีตแผ่น 1
+   var dynamicList = ss.getSheetByName('แผ่น2').getRange('A1:A2');
+   var rangeRule = SpreadsheetApp.newDataValidation().requireValueInRange(dynamicList).build();
+   sheet.getRange(row,19).setDataValidation(rangeRule); //คอลัมน์ที่ใช้อนุมัติ คือ 19
+
+  //ส่งอีเมลถึงผู้มีสิทธิ์อนุมัติ
+  var recipients = ' ';
+  var subject = 'มีการแจ้งเคสอุบัติเหตุ '+sheet.getName(); //ชื่อเรื่อง
+  var body = 'คลิกลิ้งค์เพื่อตรวจสอบความเรียบร้อย ' + ss.getUrl();//เนื้อหา
+  
+
+  sendLineNotify(message,token1);
+ //MailApp.sendEmail(recipients, subject, body);
+
+}
+
+function sendLineNotify(message,token) {
+  var options = {
+    "method": "post",
+    "payload": "message=" + message,
+    "headers": {
+    "Authorization": "Bearer " + token }
+};
+
+UrlFetchApp.fetch("https://notify-api.line.me/api/notify", options);
+}
+
+//สำหรับชีต
+function approve() {
+   var token2 = "xxx";//โทเค่นไลน์กลุ่มการขออนุมัติ
+   var ss = SpreadsheetApp.getActiveSpreadsheet();
+   var sheet = ss.getActiveSheet();
+   var row = sheet.getActiveRange().getRow();
+   var cellvalue = sheet.getActiveCell().getValue().toString();
+   var sheetName = sheet.getName();   
+   
+   var date = Utilities.formatDate(new Date(), "GMT+7", "dd/MM/");
+   var year = Number(Utilities.formatDate(new Date(), "GMT+7", "yyyy"));
+   var thaiyear = Number(Utilities.formatDate(new Date(), "GMT+7", "yyyy"))+543;
+   var time = Utilities.formatDate(new Date(), "GMT+7", "HH:mm");
+  
+   var data1 = sheet.getRange(row, 2,row).getValue();//เลขเคส
+   var data2 = sheet.getRange(row, 4,row).getValue();//ประเภทอุบัติเหตุ
+   var data3 = sheet.getRange(row, 6,row).getDisplayValue();//วันที่เกิดเหตุ
+   var data4 = sheet.getRange(row, 4,row).getDisplayValue();//ประเภทอุบัติเหตุ
+   var data5 = sheet.getRange(row, 7,row).getDisplayValue();//เวลาประมาณ
+   var data6 = sheet.getRange(row, 8,row).getValue();//รหัสพนักงาน
+   var data7 = sheet.getRange(row, 9,row).getValue();//ชื่อผู้บาดเจ็บ
+   var data8 = sheet.getRange(row, 10,row).getValue();//เบอร์ติดต่อ
+   var data9 = sheet.getRange(row, 11,row).getValue();//ตำแหน่ง
+   var data10 = sheet.getRange(row, 12,row).getValue();//สาขา
+   var data11 = sheet.getRange(row, 13,row).getValue();//รายละเอียด
+   var data12 = sheet.getRange(row, 14,row).getValue();//ผู้ติดต่อ
+   var data13 = sheet.getRange(row, 15,row).getValue();//เบอร์ติดต่อ
+   var data14 = sheet.getRange(row, 17,row).getValue();//ผู้รายงานเคส
+   var data15 = sheet.getRange(row, 18,row).getValue();//เบอรติดต่อผู้รายงาน
+
+
+   var message = ' แจ้งเหตุอุบัติเหตุหมายเลข: '+data1+'\n'+'ประเภทอุบัติเหตุ: '+data2+'\n'+'วันที่เกิดเหตุ: '+data3+'\n'+'ประเภทอุบัติเหตุ: '+data4+'\n'+'เวลาประมาณ: '+data5+'\n'+'รหัสพนักงาน: '+data6+'\n'+'ชื่อผู้บาดเจ็บ: '+data7+'\n'+'เบอร์ติดต่อ: '+data8+'\n'+'ตำแหน่ง: '+data9+'\n'+'สาขา: '+data10+'\n'+'รายละเอียด: '+data11+'\n'+'ผู้ติดต่อ: '+data12+'\n'+'เบอร์ติดต่อ: '+data13+'\n'+'ผู้แจ้งเคส: '+data14+'\n'+'เบอร์ติดต่อ: '+data15;
+
+    if (cellvalue == "sent" || cellvalue == 'ยังไม่ตรวจข้อมูล' ) {
+        sendLineNotify(message, token2);
+    }
+}
+  
+
+function createBulkPDFs () {
+  const pdfFolder = DriveApp.getFolderById("id folder pdf");
+  const tempFolder = DriveApp.getFolderById("id folder temp");
+  const docFile = DriveApp.getFileById("id doc");
+  
+  const currentSheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const row = currentSheet.getActiveCell().getRow();
+  const data = currentSheet.getRange(row, 1,1,currentSheet.getLastColumn()).getValues()[0]; 
+  createPDF(data[2], data[3],data[4], data[5], data[2], docFile, tempFolder, pdfFolder);
+
+}
+
+function createPDF (Name,Place,date,approve,pdfName,docFile,tempFolder,pdfFolder) {
+  const tempFile = docFile.makeCopy(tempFolder); 
+  const tempDocFile = DocumentApp.openById(tempFile.getId()); 
+  const body = tempDocFile.getBody(); 
+  
+  body.replaceText("{ชื่อ สกุล}", Name); 
+  body.replaceText("{สถานที่อบรม}", Place); 
+  body.replaceText("{วันที่อบรม}", date); 
+  body.replaceText("{ผลการอนุมัติ}", approve);
+  
+  tempDocFile.saveAndClose(); 
+  const pdfContentBlob = tempFile.getAs(MimeType.PDF); 
+  const pdfFile = pdfFolder.createFile(pdfContentBlob).setName(pdfName);
+  pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.COMMENT);
+  
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var row = sheet.getActiveRange().getLastRow();
+  var email = sheet.getRange(row,2).getValue().toString(); //คอลัมน์อีเมล คือคอลัมน์ที่ 2
+
+  MailApp.sendEmail(email, 'การอนุมัติการไปอบรม', 'ดาวน์โหลดเอกสารได้ที่\n'+pdfFile.getUrl());
+  tempFolder.removeFile(tempFile);
+
+}
+
